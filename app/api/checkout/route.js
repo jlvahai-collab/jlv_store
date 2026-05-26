@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-// 🌟 FIX: Use your private backend secret key variable instead of NEXT_PUBLIC_
-const API_KEY = process.env.STRIPE_SECRET_KEY || process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY;
+const API_KEY = process.env.NEXT_STRIPE_SECRET_KEY;
+
+// 🌟 FIX: Forcing an older, universally supported version overrides the dashboard lock
 const stripe = new Stripe(API_KEY, {
-    apiVersion: '2023-10-16'
+    apiVersion: '2023-10-16' 
 });
 
 export async function POST(request) {
@@ -16,15 +17,15 @@ export async function POST(request) {
             return NextResponse.json({ error: "No items in cart" }, { status: 400 });
         }
 
-        // 🔍 Retrieve full prices from Stripe to dynamically inspect their intervals
-        const pricesList = await stripe.prices.list({ active: true });
+        // 🌟 FIX: Expanded the limit configuration to 100 items so checkouts don't fail for items past the first 10
+        const pricesList = await stripe.prices.list({ active: true, limit: 100 });
+        const pricesData = pricesList.data || [];
 
-        // Collect unique billing intervals present in this cart order
         const billingIntervals = new Set();
         let hasOneTimeItem = false;
 
         lineItems.forEach(item => {
-            const stripePriceInfo = pricesList.data.find(p => p.id === item.price);
+            const stripePriceInfo = pricesData.find(p => p.id === item.price);
             
             if (stripePriceInfo?.type === "recurring" && stripePriceInfo?.recurring?.interval) {
                 billingIntervals.add(stripePriceInfo.recurring.interval);
@@ -33,21 +34,18 @@ export async function POST(request) {
             }
         });
 
-        // 🚨 CRITICAL CHECK: Stop the checkout if mixing subscriptions with one-time items
         if (billingIntervals.size > 0 && hasOneTimeItem) {
             return NextResponse.json({ 
                 error: "Stripe cannot mix subscription services with one-time products in the same checkout." 
             }, { status: 400 });
         }
 
-        // 🚨 CRITICAL CHECK: Stop the checkout if mixing different subscription lengths
         if (billingIntervals.size > 1) {
             return NextResponse.json({ 
                 error: "Stripe cannot checkout different billing intervals together." 
             }, { status: 400 });
         }
 
-        // Dynamically swap modes based on the validated cart contents
         const checkoutMode = billingIntervals.size > 0 ? "subscription" : "payment";
 
         const session = await stripe.checkout.sessions.create({
@@ -57,7 +55,6 @@ export async function POST(request) {
             cancel_url: (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000') + '/cart'
         });
 
-        // 🌟 Return using NextResponse utility to guarantee valid JSON formatting
         return NextResponse.json({ url: session.url });
         
     } catch (err) {

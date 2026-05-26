@@ -1,144 +1,84 @@
 'use client';
 
-import { useProducts } from "@/context/ProductContext";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useProducts } from "@/context/ProductContext";
 
 export default function CartPage() {
-    const router = useRouter();
     const { cart, handleIncrementProduct } = useProducts();
-    const activeCart = cart || {};
+    const cartItems = Object.entries(cart);
 
-    // 💰 Calculate the total cost dynamically with fallbacks
-    const total = Object.keys(activeCart).reduce((acc, curr) => {
-        const cartItem = activeCart[curr];
-        const quantity = cartItem?.quantity || 0;
-        
-        // Safe check for the price amount
-        const cost = cartItem?.prices?.[0]?.unit_amount || 0;
-        
-        return acc + (cost * quantity);
+    // Calculate checkout cart subtotal summary balance
+    const totalAmount = cartItems.reduce((acc, [id, item]) => {
+        const price = item.prices?.[0]?.unit_amount || 0;
+        return acc + (price / 100) * item.quantity;
     }, 0);
 
-    async function createCheckout() {
-    try {
-        const baseURL = process.env.NEXT_PUBLIC_BASE_URL || "";
-        
-        // 🌟 FIX: Explicitly extract the price identifier string from itemData properties
-        const lineItems = Object.keys(activeCart).map((key) => {
-            const itemData = activeCart[key];
-            const validPriceId = itemData?.default_price || itemData?.prices?.[0]?.id || key;
-            
-            return {
-                price: validPriceId,
-                quantity: itemData.quantity || 1
-            };
-        });
+    const handleCheckout = async () => {
+        try {
+            const payloadItems = cartItems.map(([id, item]) => ({
+                price: id,
+                quantity: item.quantity
+            }));
 
-        if (lineItems.length === 0) return;
+            const res = await fetch('/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lineItems: payloadItems })
+            });
 
-        const response = await fetch(`${baseURL}/api/checkout`, {
-            method: 'POST',
-            headers: {
-                'Content-type': 'application/json'
-            },
-            body: JSON.stringify({ lineItems })
-        });
-        
-        const data = await response.json();
-        
-        // Handle server validation messages smoothly
-        if (!response.ok) {
-            alert(data.error || "Failed to create checkout.");
-            return;
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url; // Hand over execution context to Stripe Checkout page
+            } else if (data.error) {
+                alert(data.error);
+            }
+        } catch (err) {
+            console.error("Checkout execution failure:", err);
         }
+    };
 
-        if (data.url) {
-            router.push(data.url);
-        }
-    } catch (err) {
-        console.log('Error creating checkout:', err.message);
+    if (cartItems.length === 0) {
+        return (
+            <div className="page-container" style={{ padding: '80px 20px', textAlign: 'center' }}>
+                <h2>Your shopping cart is currently empty!</h2>
+                <p>Browse our digital inventory on the main catalog index.</p>
+                <Link href="/" className="button-card" style={{ display: 'inline-block', marginTop: '15px' }}>
+                    Continue Shopping
+                </Link>
+            </div>
+        );
     }
-}
-
-
 
     return (
-        <section className="cart-section" style={{ maxWidth: '800px', margin: '0 auto', padding: '40px 20px', fontFamily: 'sans-serif' }}>
-            <h2>Your Cart</h2>
-            
-            {Object.keys(activeCart).length === 0 && (
-                <div style={{ textAlign: 'center', padding: '40px' }}>
-                    <p>You have no items in your cart!</p>
-                    <Link href="/" style={{ color: '#000', fontWeight: 'bold' }}>Go back to shop</Link>
-                </div>
-            )}
-
-            <div className="cart-container">
-                {Object.keys(activeCart).map((item, itemIndex) => {
-                    const itemData = activeCart[item];
-                    const itemQuantity = itemData?.quantity || 0;
-                    const itemName = itemData?.name || "Premium Item";
-                    const itemDescription = itemData?.description || "An exclusive custom design.";
-                    
-                    // Safe unit price conversion from cents to dollars
-                    const unitPrice = itemData?.prices?.[0]?.unit_amount 
-                        ? (itemData.prices[0].unit_amount / 100).toFixed(2) 
-                        : "0.00";
-
-                    // 🖼️ Image file asset string mapping logic
-                    const imgName = itemName === 'Medieval Dragon Month Planner' ?
-                        'planner' :
-                        itemName.replaceAll(' Sticker.png', '').replaceAll(' ', '_');
-                    const imgUrl = '/low_res/' + imgName + '.jpeg';
+        <div className="page-container" style={{ padding: '40px 20px', maxWidth: '800px', margin: '0 auto' }}>
+            <h2 style={{ marginBottom: '20px', fontSize: '28px' }}>Your Shopping Cart</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {cartItems.map(([priceId, item]) => {
+                    const price = item.prices?.[0]?.unit_amount ? (item.prices[0].unit_amount / 100).toFixed(2) : "0.00";
+                    const itemImage = item.images?.[0] || "/low_res/placeholder.jpeg";
 
                     return (
-                        <div key={itemIndex} className="cart-item" style={{ display: 'flex', gap: '20px', padding: '20px 0', borderBottom: '1px solid #eee' }}>
-                            <img 
-                                src={imgUrl} 
-                                alt={`${imgName}-img`} 
-                                style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '4px' }}
-                                onError={(e) => { e.target.src = "/low_res/planner.jpeg"; }} // Fallback if image asset doesn't exist
-                            />
-                            <div className="cart-item-info" style={{ flex: 1 }}>
-                                <h3 style={{ margin: '0 0 10px 0' }}>{itemName}</h3>
-                                <p style={{ color: '#666', fontSize: '14px' }}>
-                                    {itemDescription.slice(0, 100)}{itemDescription.length > 100 ? '...' : ''}
-                                </p>
-                                <h4 style={{ margin: '10px 0' }}>${unitPrice}</h4>
-                                
-                                <div className="quantity-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <p style={{ margin: 0 }}><strong>Quantity</strong></p>
-                                    <input 
-                                        type="number" 
-                                        value={itemQuantity} 
-                                        min="0"
-                                        style={{ width: '60px', padding: '4px', textAlign: 'center' }}
-                                        onChange={(e) => {
-                                            const priceId = itemData.default_price || itemData.prices?.[0]?.id || item;
-                                            handleIncrementProduct(priceId, e.target.value, itemData, true);
-                                        }} 
-                                    />
-                                </div>
+                        <div key={priceId} style={{ display: 'flex', gap: '20px', borderBottom: '1px solid #eee', paddingBottom: '20px', alignItems: 'center' }}>
+                            <img src={itemImage} alt={item.name} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                            <div style={{ flex: '1' }}>
+                                <h4 style={{ fontSize: '18px', margin: '0 0 5px 0' }}>{item.name}</h4>
+                                <p style={{ margin: 0, color: '#666' }}>${price} each</p>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <button onClick={() => handleIncrementProduct(priceId, -1, item)} style={{ padding: '5px 10px' }}>-</button>
+                                <span>{item.quantity}</span>
+                                <button onClick={() => handleIncrementProduct(priceId, 1, item)} style={{ padding: '5px 10px' }}>+</button>
                             </div>
                         </div>
                     );
                 })}
             </div>
-
-            {Object.keys(activeCart).length > 0 && (
-                <div className="checkout-container" style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3>Total: ${(total / 100).toFixed(2)}</h3>
-                    <div style={{ display: 'flex', gap: '15px' }}>
-                        <Link href={'/'}>
-                            <button style={{ padding: '10px 20px', cursor: 'pointer' }}>&larr; Continue shopping</button>
-                        </Link>
-                        <button onClick={createCheckout} style={{ padding: '10px 20px', backgroundColor: '#000', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-                            Checkout &rarr;
-                        </button>
-                    </div>
-                </div>
-            )}
-        </section>
+            <div style={{ marginTop: '30px', textAlign: 'right' }}>
+                <h3>Total: ${totalAmount.toFixed(2)}</h3>
+                <button onClick={handleCheckout} className="button-card" style={{ marginTop: '15px', padding: '12px 24px', fontSize: '16px', cursor: 'pointer' }}>
+                    Proceed to Stripe Checkout
+                </button>
+            </div>
+        </div>
     );
 }

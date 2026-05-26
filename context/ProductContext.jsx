@@ -9,46 +9,48 @@ export default function ProductsProvider(props) {
     const [cart, setCart] = useState({});
 
     function handleIncrementProduct(price_id, num, data, isAbsolute = false) {
-        const newCart = {
-            ...cart
-        };
-        
-        // Safely parse input string numbers into real integers
+        if (!price_id) {
+            console.error("Cannot add product to cart: Missing price_id", data);
+            return;
+        }
+
+        const newCart = { ...cart };
         const changeAmount = parseInt(num, 10) || 0;
 
         if (price_id in cart) {
             const currentQuantity = cart[price_id]?.quantity || 0;
-            newCart[price_id] = {
-                ...data,
-                // If input comes from a typed text box, overwrite the value directly.
-                // If it comes from a button press, increment relatively.
-                quantity: isAbsolute ? changeAmount : currentQuantity + changeAmount
-            };
+            // 🌟 If isAbsolute is true (like a text input box), overwrite the value.
+            // Otherwise, increment it (like clicking "Add to Cart").
+            const finalQuantity = isAbsolute ? changeAmount : currentQuantity + changeAmount;
+
+            if (finalQuantity <= 0) {
+                delete newCart[price_id];
+            } else {
+                newCart[price_id] = {
+                    ...cart[price_id],
+                    quantity: finalQuantity
+                };
+            }
         } else {
-            newCart[price_id] = {
-                ...data,
-                quantity: changeAmount
-            };
+            // Item does not exist in cart yet, create it if quantity is positive
+            if (changeAmount > 0) {
+                newCart[price_id] = {
+                    ...data,
+                    quantity: changeAmount
+                };
+            }
         }
-
-        // If quantities drop to zero or lower, delete the item row from the cart
-        if (newCart[price_id] && newCart[price_id].quantity <= 0) {
-            delete newCart[price_id];
-        }
-
+        
         setCart(newCart);
     }
 
-    const value = {
-        cart,
-        handleIncrementProduct,
-    };
-
     return (
-        <ProductContext.Provider value={value}>
+        <ProductContext.Provider value={{ cart, handleIncrementProduct }}>
             {children}
         </ProductContext.Provider>
     );
 }
 
-export const useProducts = () => useContext(ProductContext);
+export function useProducts() {
+    return useContext(ProductContext);
+}
