@@ -1,66 +1,39 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import ImageBanner from "@/components/ImageBanner";
+import Products from "@/components/Products";
 
-export default function Home() {
+export async function getProducts() {
+  const baseURL = process.env.NEXT_PUBLIC_BASE_URL
+  const response = await fetch(baseURL + '/api/products')
+  const products = await response.json()
+  return products
+}
+
+export default async function Home() {
+  const products = await getProducts()
+  
+  let planner = null
+  let stickers = []
+
+  // Ensure products is a valid array before looping
+  if (Array.isArray(products)) {
+    for (let product of products) {
+      // 🌟 FIX 1: Flexible, case-insensitive check for the word "planner"
+      if (product.name.toLowerCase().includes('planner')) {
+        planner = product;
+        continue; // Prevents the planner from entering the stickers grid
+      }
+      
+      // 🌟 FIX 2: Push all other products cleanly into this array
+      stickers.push(product);
+    }
+  }
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.js file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <>
+      <ImageBanner />
+      <section>
+        <Products planner={planner} stickers={stickers} />
+      </section>    
+    </>
   );
 }
