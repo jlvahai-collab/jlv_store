@@ -1,7 +1,11 @@
 import Stripe from "stripe";
 
-const API_KEY = process.env.STRIPE_SECRET_KEY;
-const stripe = new Stripe(API_KEY);
+const API_KEY = process.env.NEXT_STRIPE_SECRET_KEY;
+
+// 🌟 FIX: Forcing an older, universally supported version overrides the dashboard lock
+const stripe = new Stripe(API_KEY, {
+    apiVersion: '2023-10-16' 
+});
 
 export const dynamic = 'force-dynamic'; 
 
