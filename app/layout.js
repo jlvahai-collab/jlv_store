@@ -4,6 +4,7 @@ import Head from "./head";
 import Link from "next/link";
 import Cart from "../components/Cart";
 import ProductsProvider from "@/context/ProductContext";
+import ConfigureAmplify from "./ConfigureAmplify"; 
 
 export const metadata = {
   title: "JLV Store",
@@ -18,7 +19,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <Head />
       <body>
-        {/* 🌟 FIX 1: Move the Provider inside the body to fix SSR & hydration */}
+        <ConfigureAmplify />
         <ProductsProvider>
           <div id="app">
             <header>

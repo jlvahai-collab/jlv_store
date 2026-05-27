@@ -5,11 +5,11 @@ import { useProducts } from "@/context/ProductContext";
 
 export default function CartPage() {
     const { cart, handleIncrementProduct } = useProducts();
-    const cartItems = Object.entries(cart);
+    const cartItems = Object.entries(cart || {});
 
     // Calculate checkout cart subtotal summary balance
     const totalAmount = cartItems.reduce((acc, [id, item]) => {
-        const price = item.prices?.[0]?.unit_amount || 0;
+        const price = item?.prices?.[0]?.unit_amount || 0;
         return acc + (price / 100) * item.quantity;
     }, 0);
 
@@ -54,19 +54,19 @@ export default function CartPage() {
             <h2 style={{ marginBottom: '20px', fontSize: '28px' }}>Your Shopping Cart</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {cartItems.map(([priceId, item]) => {
-                    const price = item.prices?.[0]?.unit_amount ? (item.prices[0].unit_amount / 100).toFixed(2) : "0.00";
-                    const itemImage = item.images?.[0] || "/low_res/placeholder.jpeg";
+                    const price = item?.prices?.[0]?.unit_amount ? (item.prices[0].unit_amount / 100).toFixed(2) : "0.00";
+                    const itemImage = item?.images?.[0] || "/low_res/placeholder.jpeg";
 
                     return (
                         <div key={priceId} style={{ display: 'flex', gap: '20px', borderBottom: '1px solid #eee', paddingBottom: '20px', alignItems: 'center' }}>
-                            <img src={itemImage} alt={item.name} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                            <img src={itemImage} alt={item?.name || "Product"} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
                             <div style={{ flex: '1' }}>
-                                <h4 style={{ fontSize: '18px', margin: '0 0 5px 0' }}>{item.name}</h4>
+                                <h4 style={{ fontSize: '18px', margin: '0 0 5px 0' }}>{item?.name}</h4>
                                 <p style={{ margin: 0, color: '#666' }}>${price} each</p>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <button onClick={() => handleIncrementProduct(priceId, -1, item)} style={{ padding: '5px 10px' }}>-</button>
-                                <span>{item.quantity}</span>
+                                <span>{item?.quantity}</span>
                                 <button onClick={() => handleIncrementProduct(priceId, 1, item)} style={{ padding: '5px 10px' }}>+</button>
                             </div>
                         </div>
@@ -82,3 +82,4 @@ export default function CartPage() {
         </div>
     );
 }
+
