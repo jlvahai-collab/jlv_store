@@ -1,24 +1,44 @@
 import ImageBanner from "@/components/ImageBanner";
 import Products from "@/components/Products";
+import Stripe from "stripe";
 
-export async function getProducts() {
-  const baseURL = process.env.NEXT_PUBLIC_BASE_URL || '';
+// Force this page to render dynamically so it fetches fresh Stripe data on load
+export const dynamic = 'force-dynamic';
+
+async function getProducts() {
+  const API_KEY = process.env.NEXT_STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
   
+  // Safety check to prevent crashing if keys are not loaded yet
+  if (!API_KEY) {
+    console.error("Stripe Secret Key is missing in environment variables!");
+    return [];
+  }
+
+  const stripe = new Stripe(API_KEY, {
+    apiVersion: '2023-10-16' 
+  });
+
   try {
-    // 🚀 FIXED: Using relative routing if baseURL fails prevents build timeouts
-    const fetchURL = baseURL ? `${baseURL}/api/products` : '/api/products';
-    
-    const response = await fetch(fetchURL, { cache: 'no-store' });
-    
-    if (!response.ok) {
-      throw new Error(`Stripe API returned status code: ${response.status}`);
-    }
-    
-    const products = await response.json();
-    return products;
+    // 🚀 Fetch directly from Stripe's SDK, bypassing the local network request completely
+    const products = await stripe.products.list({ active: true, limit: 100 });
+    const prices = await stripe.prices.list({ active: true, limit: 100 });
+
+    // Map your prices to your products exactly like your route did
+    return products.data.map((product) => {
+      const productPrices = prices.data.filter((price) => price.product === product.id);
+      return {
+        ...product,
+        prices: productPrices.map((price) => ({
+          id: price.id,
+          unit_amount: price.unit_amount,
+          currency: price.currency,
+          recurring: price.recurring
+        }))
+      };
+    });
   } catch (error) {
-    console.error("Failed to collect backend data array:", error.message);
-    return []; // Return empty array fallback to prevent the page crashing completely
+    console.error("Stripe SDK data collection error:", error.message);
+    return [];
   }
 }
 
@@ -30,7 +50,6 @@ export default async function Home() {
 
   if (Array.isArray(products)) {
     for (let product of products) {
-      // SAFETY CHECK: Skip products with no valid name or empty prices
       if (!product.name || !product.prices || product.prices.length === 0) {
         continue; 
       }
@@ -53,39 +72,3 @@ export default async function Home() {
     </>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
