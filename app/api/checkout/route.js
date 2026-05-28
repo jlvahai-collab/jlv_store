@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const API_KEY = process.env.NEXT_STRIPE_SECRET_KEY;
-
-// 🌟 FIX: Forcing an older, universally supported version overrides the dashboard lock
-const stripe = new Stripe(API_KEY, {
-    apiVersion: '2023-10-16' 
-});
+// 🚀 Force route to stay dynamic to prevent static generation errors during the build
+export const dynamic = 'force-dynamic'; 
 
 export async function POST(request) {
+    // 🚀 FIXED: Read keys and initialize Stripe inside the runtime handler
+    const API_KEY = process.env.NEXT_STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
+    
+    const stripe = new Stripe(API_KEY, {
+        apiVersion: '2023-10-16' 
+    });
+
     try {
         const { lineItems } = await request.json();
         console.log("Incoming Line Items Payload:", lineItems);
@@ -17,7 +20,7 @@ export async function POST(request) {
             return NextResponse.json({ error: "No items in cart" }, { status: 400 });
         }
 
-        // 🌟 FIX: Expanded the limit configuration to 100 items so checkouts don't fail for items past the first 10
+        // Expanded the limit configuration to 100 items so checkouts don't fail for items past the first 10
         const pricesList = await stripe.prices.list({ active: true, limit: 100 });
         const pricesData = pricesList.data || [];
 
