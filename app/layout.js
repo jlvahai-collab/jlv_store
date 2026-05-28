@@ -59,13 +59,14 @@ export default function RootLayout({ children }) {
                 <div>
                   <h5>Store</h5>
                     <Link href={'mailto:jlvahai@gmail.com'}>Contact</Link>
-                    <Link href={'/FAQ'}>FAQ</Link>
+                    <Link href={'/faq'}>FAQ</Link> {/* 🚀 Change from /FAQ to /faq */}
                 </div>
                 <div>
-                  <h5>Support</h5>
-                    <Link href={'/Privacy'}>Privacy</Link>
-                    <Link href={'/Service'}>Service</Link>
+                <h5>Support</h5>
+                  <Link href={'/privacy'}>Privacy</Link> {/* 🚀 Change from /Privacy to /privacy */}
+                  <Link href={'/service'}>Service</Link> {/* 🚀 Change from /Service to /service */}
                 </div>
+
               </div>          
               
               <div className="socials">
